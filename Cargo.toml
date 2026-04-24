@@ -1,3 +1,3 @@
 [workspace]
 resolver = "3"
-members = ["ez-video-capture-core"]
+members = ["ez-video-capture-core", "ez-video-capture-python"]

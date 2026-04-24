@@ -1,0 +1,13 @@
+[package]
+name = "ez-video-capture-python"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "ez_video_capture"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = "0.25.0"
+ez-video-capture-core = { path = "../ez-video-capture-core" }
