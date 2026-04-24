@@ -6,4 +6,5 @@ mod packet;
 mod writer;
 
 pub use core::VideoCaptureCore;
+pub use decoder::HardwareAcceleration;
 pub use error::Error;
