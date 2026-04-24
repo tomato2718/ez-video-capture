@@ -11,7 +11,8 @@ use crate::packet::Packet;
 pub struct HardwareDecoder {
     decoder: AVCodecContext,
     scaler: Option<SwsContext>,
-    frame_buffer: AVFrame,
+    sw_frame_buffer: AVFrame,
+    rgb_frame_buffer: AVFrame,
     buffer_size: usize,
 }
 
@@ -25,13 +26,14 @@ impl HardwareDecoder {
         let hw_device_ctx = AVHWDeviceContext::create(device_type, None, None, 0)
             .map_err(|_| Error::FailedToOpenDecoder)?;
         let decoder = Self::create_decoder(codec, codecpar, hw_device_ctx)?;
-        let frame_buffer = Self::create_frame_buffer(&decoder);
+        let rgb_frame_buffer = Self::create_rgb_frame_buffer(&decoder);
         let buffer_size = (3 * decoder.width * decoder.height) as usize;
 
         Ok(HardwareDecoder {
             decoder,
             scaler: None,
-            frame_buffer,
+            sw_frame_buffer: AVFrame::new(),
+            rgb_frame_buffer,
             buffer_size,
         })
     }
@@ -61,7 +63,7 @@ impl HardwareDecoder {
         }
     }
 
-    fn create_frame_buffer(decoder: &AVCodecContext) -> AVFrame {
+    fn create_rgb_frame_buffer(decoder: &AVCodecContext) -> AVFrame {
         let mut rgb_frame = AVFrame::new();
         rgb_frame.set_width(decoder.width);
         rgb_frame.set_height(decoder.height);
@@ -84,19 +86,18 @@ impl HardwareDecoder {
         }
         let mut res = Vec::new();
         while let Ok(hw_frame) = self.decoder.receive_frame() {
-            let mut sw_frame = AVFrame::new();
-            if sw_frame.hwframe_transfer_data(&hw_frame).is_err() {
+            if self.sw_frame_buffer.hwframe_transfer_data(&hw_frame).is_err() {
                 continue;
             }
 
             if self.scaler.is_none() {
                 self.scaler = Some(
                     SwsContext::get_context(
-                        sw_frame.width,
-                        sw_frame.height,
-                        sw_frame.format,
-                        sw_frame.width,
-                        sw_frame.height,
+                        self.sw_frame_buffer.width,
+                        self.sw_frame_buffer.height,
+                        self.sw_frame_buffer.format,
+                        self.sw_frame_buffer.width,
+                        self.sw_frame_buffer.height,
                         AV_PIX_FMT_RGB24,
                         SWS_BILINEAR,
                         None,
@@ -109,11 +110,11 @@ impl HardwareDecoder {
             self.scaler
                 .as_mut()
                 .unwrap()
-                .scale_frame(&sw_frame, 0, sw_frame.height, &mut self.frame_buffer)
+                .scale_frame(&self.sw_frame_buffer, 0, self.sw_frame_buffer.height, &mut self.rgb_frame_buffer)
                 .unwrap();
 
             let mut buffer = vec![0u8; self.buffer_size];
-            self.frame_buffer
+            self.rgb_frame_buffer
                 .image_copy_to_buffer(&mut buffer, 1)
                 .expect("Should be ok");
             res.push(buffer);
