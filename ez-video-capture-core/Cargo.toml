@@ -1,0 +1,8 @@
+[package]
+name = "ez-video-capture-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+rsmpeg = { version = "0.18.0", features = ["link_system_ffmpeg", "ffmpeg7"], default-features = false }
