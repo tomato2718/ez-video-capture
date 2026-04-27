@@ -18,10 +18,12 @@ def subprocess_target(
     source: str,
     count: int,
     duration: int,
-    queue: "mp.Queue[tuple[float, int]]",
+    queue: "mp.Queue[tuple[float, int, float]]",
 ) -> None:
     proc = psutil.Process(os.getpid())
     rss_before = proc.memory_info().rss
+    proc.cpu_percent(interval=None)
     fps = CASES[case_name](source, count, duration)
+    cpu_percent = proc.cpu_percent(interval=None)
     rss_delta = proc.memory_info().rss - rss_before
-    queue.put((fps, rss_delta))
+    queue.put((fps, rss_delta, cpu_percent))

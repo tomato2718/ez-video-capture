@@ -35,29 +35,31 @@ Original video (480p) re-streamed to localhost via RTSP, rescaled to 4K 30fps.
 
 ## Results
 
-### 1 connection (20s)
+> Note: numbers may vary between runs depending on system load and network conditions.
 
-| Case | FPS | RSS delta (MiB) |
-|---|---|---|
-| cv2.VideoCapture (sw) | 27.20 | 354.38 |
-| cv2.VideoCapture (hw) | 28.15 | 354.78 |
-| EzVideoCapture (sw) | 31.50 | 181.75 |
-| EzVideoCapture (hw) | 31.25 | 155.12 |
+### 1 connection
 
-### 5 connections (20s)
+| Case | FPS | RSS delta (MiB) | CPU (%) |
+|---|---|---|---|
+| cv2.VideoCapture (sw) | 29.80 | 400.70 | 161.0 |
+| cv2.VideoCapture (hw) | 32.10 | 337.36 | 163.4 |
+| EzVideoCapture (sw) | 30.35 | 220.45 | 136.9 |
+| EzVideoCapture (hw) | 29.40 | 181.27 | 143.6 |
 
-| Case | FPS | RSS delta (MiB) |
-|---|---|---|
-| cv2.VideoCapture (sw) | 25.52 | 1469.55 |
-| cv2.VideoCapture (hw) | 25.22 | 1455.55 |
-| EzVideoCapture (sw) | 31.00 | 783.17 |
-| EzVideoCapture (hw) | 29.27 | 475.58 |
+### 5 connections
 
-### 10 connections (20s)
+| Case | FPS | RSS delta (MiB) | CPU (%) |
+|---|---|---|---|
+| cv2.VideoCapture (sw) | 26.90 | 1505.83 | 353.9 |
+| cv2.VideoCapture (hw) | 28.02 | 1501.06 | 384.1 |
+| EzVideoCapture (sw) | 29.94 | 811.67 | 292.5 |
+| EzVideoCapture (hw) | 29.61 | 503.39 | 319.8 |
 
-| Case | FPS | RSS delta (MiB) |
-|---|---|---|
-| cv2.VideoCapture (sw) | 12.51 | 1922.05 |
-| cv2.VideoCapture (hw) | 14.66 | 2108.80 |
-| EzVideoCapture (sw) | 22.57 | 1350.41 |
-| EzVideoCapture (hw) | 18.70 | 899.61 |
+### 10 connections
+
+| Case | FPS | RSS delta (MiB) | CPU (%) |
+|---|---|---|---|
+| cv2.VideoCapture (sw) | 14.39 | 1962.48 | 442.9 |
+| cv2.VideoCapture (hw) | 15.14 | 2034.39 | 466.2 |
+| EzVideoCapture (sw) | 17.52 | 1350.22 | 388.1 |
+| EzVideoCapture (hw) | 17.21 | 904.27 | 306.0 |

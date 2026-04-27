@@ -18,26 +18,28 @@ class BenchResult:
     name: str
     fps: float
     rss_delta: int
+    cpu_percent: float
 
     def __str__(self) -> str:
         return (
             f"{self.name:<24} "
             f"fps={self.fps:>8.2f}  "
-            f"rss_delta={self.rss_delta / (1024 * 1024):>10.2f} MiB"
+            f"rss_delta={self.rss_delta / (1024 * 1024):>10.2f} MiB  "
+            f"cpu={self.cpu_percent:>6.1f}%"
         )
 
 
 def benchmark(name: str, source: str, count: int, duration: int) -> BenchResult:
     ctx = mp.get_context("spawn")
-    queue: "mp.Queue[tuple[float, int]]" = ctx.Queue()
+    queue: "mp.Queue[tuple[float, int, float]]" = ctx.Queue()
     p = ctx.Process(
         target=subprocess_target,
         args=(name, source, count, duration, queue),
     )
     p.start()
     p.join()
-    fps, rss_delta = queue.get()
-    return BenchResult(name=name, fps=fps, rss_delta=rss_delta)
+    fps, rss_delta, cpu_percent = queue.get()
+    return BenchResult(name=name, fps=fps, rss_delta=rss_delta, cpu_percent=cpu_percent)
 
 
 def parse_args() -> argparse.Namespace:
@@ -68,10 +70,13 @@ def main() -> None:
     print("=" * 72)
     print(f"Benchmark: count={args.count}, time={args.time}s")
     print("=" * 72)
-    print(f"{'Case':<24} {'FPS':>8} {'RSS delta (MiB)':>16}")
-    print("-" * 56)
+    print(f"{'Case':<24} {'FPS':>8} {'RSS delta (MiB)':>16} {'CPU (%)':>10}")
+    print("-" * 67)
     for r in results:
-        print(f"{r.name:<24} {r.fps:>8.2f} {r.rss_delta / (1024 * 1024):>16.2f}")
+        print(
+            f"{r.name:<24} {r.fps:>8.2f} "
+            f"{r.rss_delta / (1024 * 1024):>16.2f} {r.cpu_percent:>10.1f}"
+        )
 
 
 if __name__ == "__main__":
