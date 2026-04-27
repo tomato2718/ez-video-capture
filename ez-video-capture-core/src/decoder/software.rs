@@ -12,7 +12,7 @@ pub struct SoftwareDecoder {
     decoder: AVCodecContext,
     scaler: SwsContext,
     frame_buffer: AVFrame,
-    buffer_size: usize,
+    output_buffer: Vec<u8>,
 }
 
 impl SoftwareDecoder {
@@ -20,13 +20,13 @@ impl SoftwareDecoder {
         let decoder = Self::create_decoder(codec, codecpar)?;
         let scaler = Self::create_scaler(&decoder)?;
         let frame_buffer = Self::create_frame_buffer(&decoder);
-        let buffer_size = (3 * decoder.width * decoder.height) as usize;
+        let output_buffer = vec![0u8; (3 * decoder.width * decoder.height) as usize];
 
         Ok(SoftwareDecoder {
             decoder,
             scaler,
             frame_buffer,
-            buffer_size,
+            output_buffer,
         })
     }
     fn create_decoder(
@@ -76,22 +76,20 @@ impl SoftwareDecoder {
         self.decoder.height as usize
     }
 
-    pub fn decode(&mut self, packet: &Packet) -> Vec<Vec<u8>> {
-        self.decoder
-            .send_packet(Some(packet))
-            .expect("Should be ok");
-        let mut res = Vec::new();
+    pub fn decode(&mut self, packet: &Packet, mut receive_frame: impl FnMut(&[u8])) {
+        if self.decoder.send_packet(Some(packet)).is_err() {
+            return;
+        }
         while let Ok(frame) = self.decoder.receive_frame() {
             self.scaler
                 .scale_frame(&frame, 0, frame.height, &mut self.frame_buffer)
                 .unwrap();
 
-            let mut buffer = vec![0u8; self.buffer_size];
             self.frame_buffer
-                .image_copy_to_buffer(&mut buffer, 1)
+                .image_copy_to_buffer(&mut self.output_buffer, 1)
                 .expect("Should be ok");
-            res.push(buffer)
+
+            receive_frame(&self.output_buffer);
         }
-        res
     }
 }

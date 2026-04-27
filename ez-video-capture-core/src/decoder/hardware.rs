@@ -13,7 +13,7 @@ pub struct HardwareDecoder {
     scaler: Option<SwsContext>,
     sw_frame_buffer: AVFrame,
     rgb_frame_buffer: AVFrame,
-    buffer_size: usize,
+    output_buffer: Vec<u8>,
 }
 
 impl HardwareDecoder {
@@ -27,14 +27,14 @@ impl HardwareDecoder {
             .map_err(|_| Error::FailedToOpenDecoder)?;
         let decoder = Self::create_decoder(codec, codecpar, hw_device_ctx)?;
         let rgb_frame_buffer = Self::create_rgb_frame_buffer(&decoder);
-        let buffer_size = (3 * decoder.width * decoder.height) as usize;
+        let output_buffer = vec![0u8; (3 * decoder.width * decoder.height) as usize];
 
         Ok(HardwareDecoder {
             decoder,
             scaler: None,
             sw_frame_buffer: AVFrame::new(),
             rgb_frame_buffer,
-            buffer_size,
+            output_buffer,
         })
     }
 
@@ -80,13 +80,16 @@ impl HardwareDecoder {
         self.decoder.height as usize
     }
 
-    pub fn decode(&mut self, packet: &Packet) -> Vec<Vec<u8>> {
+    pub fn decode(&mut self, packet: &Packet, mut receive_frame: impl FnMut(&[u8])) {
         if self.decoder.send_packet(Some(packet)).is_err() {
-            return Vec::new();
+            return;
         }
-        let mut res = Vec::new();
         while let Ok(hw_frame) = self.decoder.receive_frame() {
-            if self.sw_frame_buffer.hwframe_transfer_data(&hw_frame).is_err() {
+            if self
+                .sw_frame_buffer
+                .hwframe_transfer_data(&hw_frame)
+                .is_err()
+            {
                 continue;
             }
 
@@ -110,15 +113,18 @@ impl HardwareDecoder {
             self.scaler
                 .as_mut()
                 .unwrap()
-                .scale_frame(&self.sw_frame_buffer, 0, self.sw_frame_buffer.height, &mut self.rgb_frame_buffer)
+                .scale_frame(
+                    &self.sw_frame_buffer,
+                    0,
+                    self.sw_frame_buffer.height,
+                    &mut self.rgb_frame_buffer,
+                )
                 .unwrap();
 
-            let mut buffer = vec![0u8; self.buffer_size];
             self.rgb_frame_buffer
-                .image_copy_to_buffer(&mut buffer, 1)
+                .image_copy_to_buffer(&mut self.output_buffer, 1)
                 .expect("Should be ok");
-            res.push(buffer);
+            receive_frame(&self.output_buffer);
         }
-        res
     }
 }

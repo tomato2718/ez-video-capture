@@ -68,10 +68,10 @@ impl VideoDecoder {
         }
     }
 
-    pub fn decode(&mut self, packet: &Packet) -> Vec<Vec<u8>> {
+    pub fn decode(&mut self, packet: &Packet, receive_frame: impl FnMut(&[u8])) {
         match self {
-            Self::Software(d) => d.decode(packet),
-            Self::Hardware(d) => d.decode(packet),
+            Self::Software(d) => d.decode(packet, receive_frame),
+            Self::Hardware(d) => d.decode(packet, receive_frame),
         }
     }
 }

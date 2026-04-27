@@ -62,11 +62,15 @@ impl VideoCaptureCore {
         decoder: mpsc::Sender<Packet>,
         writer: Option<mpsc::Sender<Packet>>,
     ) {
-        let is_closed = self.is_closed.clone();
         let mut tasks: Vec<Box<dyn Fn(Packet) + Send>> = vec![];
-        tasks.push(Box::new(move |packet| {
-            decoder.send(packet).expect("rx should not be close early");
-        }));
+        {
+            let is_closed = self.is_closed.clone();
+            tasks.push(Box::new(move |packet| {
+                if decoder.send(packet).is_err() {
+                    is_closed.store(true, Ordering::Relaxed);
+                }
+            }));
+        }
         if let Some(writer) = writer {
             let is_closed = self.is_closed.clone();
             tasks.push(Box::new(move |packet| {
@@ -75,26 +79,29 @@ impl VideoCaptureCore {
                 }
             }))
         }
-        let handler = thread::spawn(move || {
-            while let Ok(Some(packet)) = capture.receive() {
-                if packet.flags == 1 {
+        let handler = {
+            let is_closed = self.is_closed.clone();
+            thread::spawn(move || {
+                while let Ok(Some(packet)) = capture.receive() {
+                    if packet.flags == 1 {
+                        for task in tasks.iter() {
+                            task(clone_packet(&packet));
+                        }
+                        break;
+                    }
+                }
+                while !is_closed.load(Ordering::Relaxed) {
+                    let packet = match capture.receive() {
+                        Ok(Some(packet)) => packet,
+                        _ => break,
+                    };
                     for task in tasks.iter() {
                         task(clone_packet(&packet));
                     }
-                    break;
                 }
-            }
-            while !is_closed.load(Ordering::Relaxed) {
-                let packet = match capture.receive() {
-                    Ok(Some(packet)) => packet,
-                    _ => break,
-                };
-                for task in tasks.iter() {
-                    task(clone_packet(&packet));
-                }
-            }
-            is_closed.store(true, Ordering::Relaxed);
-        });
+                is_closed.store(true, Ordering::Relaxed);
+            })
+        };
         self.daemon_threads.push(handler);
     }
 
@@ -103,8 +110,13 @@ impl VideoCaptureCore {
         let buffer = self.buffer.clone();
         let handler = thread::spawn(move || {
             for packet in rx.iter() {
-                let frame = decoder.decode(&packet).pop();
-                *(buffer.lock().unwrap()) = frame;
+                decoder.decode(&packet, |frame| {
+                    let mut buffer = buffer.lock().unwrap();
+                    match buffer.as_mut() {
+                        Some(buffer) => buffer.copy_from_slice(frame),
+                        None => *buffer = Some(frame.to_vec()),
+                    }
+                });
             }
         });
         self.daemon_threads.push(handler);
