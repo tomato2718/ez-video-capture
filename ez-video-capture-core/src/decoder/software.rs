@@ -1,7 +1,7 @@
 use rsmpeg::{
     avcodec::{AVCodecContext, AVCodecParametersRef, AVCodecRef},
     avutil::AVFrame,
-    ffi::{AV_PIX_FMT_RGB24, SWS_BILINEAR},
+    ffi::{AV_PIX_FMT_RGB24, SWS_POINT},
     swscale::SwsContext,
 };
 
@@ -49,7 +49,7 @@ impl SoftwareDecoder {
             decoder.width,
             decoder.height,
             AV_PIX_FMT_RGB24,
-            SWS_BILINEAR,
+            SWS_POINT,
             None,
             None,
             None,

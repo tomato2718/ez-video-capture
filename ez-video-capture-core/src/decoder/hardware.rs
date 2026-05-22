@@ -1,7 +1,7 @@
 use rsmpeg::{
     avcodec::{AVCodecContext, AVCodecParametersRef, AVCodecRef},
     avutil::{AVFrame, AVHWDeviceContext, AVHWDeviceType},
-    ffi::{AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX, AV_PIX_FMT_RGB24, SWS_BILINEAR},
+    ffi::{AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX, AV_PIX_FMT_RGB24, SWS_POINT},
     swscale::SwsContext,
 };
 
@@ -102,7 +102,7 @@ impl HardwareDecoder {
                         self.sw_frame_buffer.width,
                         self.sw_frame_buffer.height,
                         AV_PIX_FMT_RGB24,
-                        SWS_BILINEAR,
+                        SWS_POINT,
                         None,
                         None,
                         None,
