@@ -1,6 +1,6 @@
 [package]
 name = "ez-video-capture-python"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -8,6 +8,11 @@ edition = "2021"
 name = "ez_video_capture"
 crate-type = ["cdylib"]
 
+[features]
+default = ["ffmpeg7"]
+ffmpeg6 = ["ez-video-capture-core/ffmpeg6"]
+ffmpeg7 = ["ez-video-capture-core/ffmpeg7"]
+
 [dependencies]
 pyo3 = "0.25.0"
-ez-video-capture-core = { path = "../ez-video-capture-core" }
+ez-video-capture-core = { path = "../ez-video-capture-core", default-features = false }
