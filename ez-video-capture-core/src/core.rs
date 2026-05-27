@@ -41,7 +41,11 @@ impl VideoCaptureCore {
         let writer_tx = save_path
             .map(|path| instance.setup_writer_thread(path, &capture))
             .transpose()?;
-        instance.setup_capture_thread(capture, decoder_tx, writer_tx);
+        let txs = [Some(decoder_tx), writer_tx]
+            .into_iter()
+            .flatten()
+            .collect();
+        instance.setup_capture_thread(capture, txs);
 
         Ok(instance)
     }
@@ -56,29 +60,18 @@ impl VideoCaptureCore {
         Ok((capture, decoder))
     }
 
-    fn setup_capture_thread(
-        &mut self,
-        mut capture: VideoCapture,
-        decoder: mpsc::Sender<Packet>,
-        writer: Option<mpsc::Sender<Packet>>,
-    ) {
-        let mut tasks: Vec<Box<dyn Fn(Packet) + Send>> = vec![];
-        {
-            let is_closed = self.is_closed.clone();
-            tasks.push(Box::new(move |packet| {
-                if decoder.send(packet).is_err() {
-                    is_closed.store(true, Ordering::Relaxed);
-                }
-            }));
-        }
-        if let Some(writer) = writer {
-            let is_closed = self.is_closed.clone();
-            tasks.push(Box::new(move |packet| {
-                if writer.send(packet).is_err() {
-                    is_closed.store(true, Ordering::Relaxed);
-                }
-            }))
-        }
+    fn setup_capture_thread(&mut self, mut capture: VideoCapture, txs: Vec<mpsc::Sender<Packet>>) {
+        let tasks: Vec<_> = txs
+            .into_iter()
+            .map(|tx| {
+                let is_closed = self.is_closed.clone();
+                Box::new(move |packet| {
+                    if tx.send(packet).is_err() {
+                        is_closed.store(true, Ordering::Relaxed);
+                    }
+                }) as Box<dyn Fn(Packet) + Send>
+            })
+            .collect();
         let handler = {
             let is_closed = self.is_closed.clone();
             thread::spawn(move || {
